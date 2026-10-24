@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 
 export const connectDB = async () => {
-  const primaryUri = process.env.MONGO_URI || 'mongodb://localhost:27017/chhotabhai_ecommerce';
+  const primaryUri = process.env.MONGO_URI || 'mongodb+srv://rohit_db_user:ChhotaBhai123@cluster0.zjvsoi9.mongodb.net/chhotabhai?retryWrites=true&w=majority';
 
   const connectionOptions = {
     autoIndex: true,
-    serverSelectionTimeoutMS: 5000,
+    serverSelectionTimeoutMS: 10000,
   };
 
   try {

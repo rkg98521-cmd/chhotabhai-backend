@@ -41,10 +41,11 @@ app.use(
   })
 );
 
-// 3. Strict CORS Configuration reading from FRONTEND_URL
+// 3. Strict CORS Configuration
 const allowedOrigins = [
+  'http://localhost:5173',
+  'https://chhotabhai-frontend.vercel.app',
   process.env.FRONTEND_URL,
-  ...(process.env.NODE_ENV !== 'production' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : []),
 ].filter(Boolean);
 
 app.use(
@@ -59,7 +60,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   })
 );
 
