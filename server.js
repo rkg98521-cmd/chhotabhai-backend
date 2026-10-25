@@ -41,29 +41,41 @@ app.use(
   })
 );
 
-// 3. Strict CORS Configuration
+// 3. Robust Production & Deployment CORS Configuration
+const configuredOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((url) => url.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
+  'http://localhost:5174',
   'http://localhost:3000',
   'https://chhotabhai-frontend.vercel.app',
-  process.env.FRONTEND_URL,
+  ...configuredOrigins,
 ].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. server-to-server, curl, mobile tools) or any localhost port in dev
-      if (
-        !origin ||
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+
+      // Check if origin matches allowed list or known hosting domains (Vercel, Netlify)
+      const isAllowed =
         allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.netlify.app') ||
         origin.startsWith('http://localhost:') ||
         origin.startsWith('http://127.0.0.1:') ||
-        allowedOrigins.length === 0
-      ) {
+        process.env.NODE_ENV !== 'production';
+
+      if (isAllowed) {
         callback(null, true);
       } else {
-        callback(new Error(`Origin '${origin}' not allowed by strict CORS policy.`));
+        console.warn(`[CORS] Blocked request from origin: ${origin}`);
+        callback(new Error(`Origin '${origin}' not allowed by CORS policy.`));
       }
     },
     credentials: true,
