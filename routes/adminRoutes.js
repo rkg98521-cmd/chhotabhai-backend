@@ -9,6 +9,7 @@ import {
   toggleTopDeal,
   toggleFeatured,
   getAllOrders,
+  getAdminOrderById,
   updateOrderStatus,
   fulfillOrder,
   createCategory,
@@ -80,6 +81,7 @@ router.post(
 
 // Order Admin Operations
 router.get('/orders', getAllOrders);
+router.get('/orders/:id', getAdminOrderById);
 router.patch('/orders/:id/status', updateOrderStatus);
 router.put('/orders/:id/status', updateOrderStatus);
 router.patch('/orders/:id/fulfill', fulfillOrder);

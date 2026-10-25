@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { register, login, getMe, updateProfile } from '../controllers/authController.js';
+import { register, login, googleLogin, getMe, updateProfile } from '../controllers/authController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { validateRequest } from '../middlewares/validateMiddleware.js';
 
@@ -28,7 +28,10 @@ router.post(
   login
 );
 
+router.post('/google', googleLogin);
+
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
+
 
 export default router;

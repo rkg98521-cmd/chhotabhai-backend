@@ -44,6 +44,8 @@ app.use(
 // 3. Strict CORS Configuration
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
   'https://chhotabhai-frontend.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
@@ -51,8 +53,14 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. server-to-server, curl, mobile tools)
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.length === 0) {
+      // Allow requests with no origin (e.g. server-to-server, curl, mobile tools) or any localhost port in dev
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:') ||
+        allowedOrigins.length === 0
+      ) {
         callback(null, true);
       } else {
         callback(new Error(`Origin '${origin}' not allowed by strict CORS policy.`));
@@ -60,7 +68,18 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Idempotency-Key',
+      'idempotency-key',
+      'X-Idempotency-Key',
+      'x-idempotency-key',
+      'Origin',
+    ],
+    exposedHeaders: ['Idempotency-Key', 'idempotency-key'],
   })
 );
 
@@ -69,8 +88,15 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// 5. Request Body Parsers (with size limits)
-app.use(express.json({ limit: '10mb' }));
+// 5. Request Body Parsers (with raw body buffer capture for HMAC webhook verification)
+app.use(
+  express.json({
+    limit: '10mb',
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // 6. NoSQL Injection Sanitization
@@ -90,10 +116,10 @@ const apiLimiter = rateLimit({
   },
 });
 
-// Strict rate limiter for sensitive endpoints: auth & checkout (max 15 requests per 10 mins)
+// Strict rate limiter for sensitive endpoints: auth & checkout
 const sensitiveApiLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 15, // Max 15 requests per 10 minutes
+  max: process.env.NODE_ENV === 'production' ? 25 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -137,8 +163,16 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Server Listener
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`[Server] Running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+
+  // Start Autonomous Payment Reconciliation Background Worker
+  try {
+    const { startPaymentReconciliationCron } = await import('./src/modules/payment/index.js');
+    startPaymentReconciliationCron();
+  } catch (cronErr) {
+    console.error('[PaymentCron] Failed to initialize reconciliation worker:', cronErr.message);
+  }
 });
 
 // Process event handlers for unhandled rejections

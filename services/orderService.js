@@ -3,6 +3,7 @@ import { Product } from '../models/Product.js';
 import { Cart } from '../models/Cart.js';
 import { Coupon } from '../models/Coupon.js';
 import { ApiError } from '../utils/apiError.js';
+import { orderEventEmitter, ORDER_EVENTS } from '../src/modules/notification/index.js';
 
 export class OrderService {
   static async createOrderFromCart(userId, shippingAddress, paymentMethod = 'PREPAID_ONLINE') {
@@ -278,17 +279,17 @@ export class OrderService {
       },
       couponApplied,
       paymentInfo: {
-        method: 'PREPAID_ONLINE',
-        status: 'PAID',
-        transactionId: `TXN_SIM_${Date.now()}`,
-        paidAt: new Date(),
+        method: paymentMethod || 'PREPAID_ONLINE',
+        status: 'PENDING',
+        transactionId: null,
+        paidAt: null,
       },
-      orderStatus: 'CONFIRMED',
+      orderStatus: 'PAYMENT_PENDING',
       statusTimeline: [
         {
-          status: 'CONFIRMED',
+          status: 'PAYMENT_PENDING',
           timestamp: new Date(),
-          comment: 'Prepaid order authorized and confirmed via sandbox payment simulator',
+          comment: 'Prepaid order session initiated, awaiting payment confirmation',
         },
       ],
     });

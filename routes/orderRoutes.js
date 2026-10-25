@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { checkout, getMyOrders, getOrderById, trackOrder } from '../controllers/orderController.js';
+import {
+  checkout,
+  getMyOrders,
+  getOrderById,
+  trackOrder,
+  cancelOrder,
+  requestReplacement,
+} from '../controllers/orderController.js';
 import { protect } from '../middlewares/authMiddleware.js';
 import { validateRequest } from '../middlewares/validateMiddleware.js';
 
@@ -33,7 +40,6 @@ const checkoutValidation = [
   body('items').optional().isArray().withMessage('Items must be an array of order items'),
   body('couponCode').optional().isString(),
   validateRequest,
-
 ];
 
 router.post('/checkout', checkoutValidation, checkout);
@@ -41,6 +47,27 @@ router.post('/', checkoutValidation, checkout);
 
 router.get('/my-orders', getMyOrders);
 router.get('/myorders', getMyOrders);
+router.patch('/:id/cancel', cancelOrder);
+router.post('/:id/cancel', cancelOrder);
+
+// Replacement Flow (One-Time Replacement Only within 7 Days of Delivery)
+router.post(
+  '/:id/replace',
+  [
+    body('reason').trim().notEmpty().withMessage('Replacement reason is required (e.g. Defective, Damaged in transit, Wrong item).'),
+    validateRequest,
+  ],
+  requestReplacement
+);
+router.patch(
+  '/:id/replace',
+  [
+    body('reason').trim().notEmpty().withMessage('Replacement reason is required (e.g. Defective, Damaged in transit, Wrong item).'),
+    validateRequest,
+  ],
+  requestReplacement
+);
+
 router.get('/:id', getOrderById);
 
 export default router;

@@ -174,6 +174,9 @@ const orderSchema = new mongoose.Schema(
         'OUT_FOR_DELIVERY',
         'DELIVERED',
         'CANCELLED',
+        'REPLACEMENT_REQUESTED',
+        'REPLACEMENT_PROCESSING',
+        'REPLACED',
       ],
       default: 'PAYMENT_PENDING',
       index: true,
@@ -184,7 +187,33 @@ const orderSchema = new mongoose.Schema(
       trackingNumber: { type: String, default: '', trim: true },
       trackingUrl: { type: String, default: '', trim: true },
     },
+    inventoryRestored: {
+      type: Boolean,
+      default: false,
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
+    hasBeenReplaced: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    replacementDetails: {
+      hasRequested: { type: Boolean, default: false },
+      requestedAt: { type: Date, default: null },
+      reason: { type: String, default: '', trim: true },
+      customerNote: { type: String, default: '', trim: true },
+      adminComment: { type: String, default: '', trim: true },
+      approvedAt: { type: Date, default: null },
+      replacedAt: { type: Date, default: null },
+      courierCompany: { type: String, default: '', trim: true },
+      trackingNumber: { type: String, default: '', trim: true },
+      trackingUrl: { type: String, default: '', trim: true },
+    },
   },
+
   {
     timestamps: true,
     toJSON: { virtuals: true },

@@ -1,7 +1,10 @@
+import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/apiError.js';
 import { ApiResponse } from '../utils/apiResponse.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password, phone } = req.body;
@@ -147,9 +150,96 @@ export const updateProfile = asyncHandler(async (req, res) => {
   );
 });
 
+export const googleLogin = asyncHandler(async (req, res) => {
+  const { credential, token } = req.body;
+  const idToken = credential || token;
+
+  if (!idToken) {
+    throw new ApiError(400, 'Google credential token is required.');
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID || '804543789990-h9cgnd14slfrgtaqad7tchr87ek5ko1p.apps.googleusercontent.com';
+
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: clientId,
+    });
+  } catch (err) {
+    throw new ApiError(401, 'Invalid or expired Google authentication token.');
+  }
+
+  const payload = ticket.getPayload();
+  const { sub: googleId, email, name, picture } = payload;
+
+  if (!email) {
+    throw new ApiError(400, 'Unable to retrieve email address from Google.');
+  }
+
+  let user = await User.findOne({ email: email.toLowerCase().trim() });
+
+  if (user) {
+    if (user.isActive === false) {
+      throw new ApiError(403, 'Account is suspended. Please contact customer support.');
+    }
+    let updated = false;
+    if (!user.googleId) {
+      user.googleId = googleId;
+      updated = true;
+    }
+    if (!user.avatar && picture) {
+      user.avatar = picture;
+      updated = true;
+    }
+    if (updated) {
+      await user.save();
+    }
+  } else {
+    user = await User.create({
+      name: name || 'Google User',
+      email: email.toLowerCase().trim(),
+      googleId,
+      avatar: picture || '',
+      role: 'customer',
+    });
+  }
+
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  const userProfile = {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || '',
+    role: user.role,
+    avatar: user.avatar || '',
+    addresses: user.addresses || [],
+  };
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        user: userProfile,
+        token: accessToken,
+        accessToken,
+        refreshToken,
+      },
+      'Signed in with Google successfully.'
+    )
+  );
+});
+
 export default {
   register,
   login,
+  googleLogin,
   getMe,
   updateProfile,
 };
+

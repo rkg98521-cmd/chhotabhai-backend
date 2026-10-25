@@ -6,6 +6,7 @@ import orderRoutes from './orderRoutes.js';
 import adminRoutes from './adminRoutes.js';
 import uploadRoutes from './uploadRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
+import { paymentRoutes as paymentOrchestratorRoutes } from '../src/modules/payment/index.js';
 import { getActiveDevices } from '../controllers/deviceController.js';
 import deviceRoutes from './deviceRoutes.js';
 import bannerRoutes from './bannerRoutes.js';
@@ -31,7 +32,9 @@ router.use('/orders', orderRoutes);
 router.use('/admin', adminRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/payment', paymentRoutes);
+router.use('/payments', paymentOrchestratorRoutes);
 
 export default router;
+
 
 
