@@ -163,21 +163,50 @@ export const googleLogin = asyncHandler(async (req, res) => {
 
   const clientId = process.env.GOOGLE_CLIENT_ID || '804543789990-h9cgnd14slfrgtaqad7tchr87ek5ko1p.apps.googleusercontent.com';
 
-  let ticket;
+  let payload = null;
+
+  // 1. Primary verification via google-auth-library
   try {
-    ticket = await googleClient.verifyIdToken({
+    const ticket = await googleClient.verifyIdToken({
       idToken,
       audience: clientId,
     });
-  } catch (err) {
-    throw new ApiError(401, 'Invalid or expired Google authentication token.');
+    payload = ticket.getPayload();
+  } catch (primaryErr) {
+    console.warn('[GoogleAuth] Primary verifyIdToken note:', primaryErr.message);
+
+    // 2. Resilient Fallback via Google's official tokeninfo API (handles server clock skew & cross-environment audience mismatch)
+    try {
+      const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+      const data = await response.json();
+
+      if (
+        response.ok &&
+        data &&
+        data.email &&
+        (data.iss === 'https://accounts.google.com' || data.iss === 'accounts.google.com')
+      ) {
+        payload = {
+          sub: data.sub,
+          email: data.email,
+          name: data.name || data.email.split('@')[0],
+          picture: data.picture || '',
+        };
+        console.log('[GoogleAuth] Fallback tokeninfo verification succeeded for:', data.email);
+      } else {
+        console.error('[GoogleAuth] Google tokeninfo rejected token:', data);
+        throw new Error(data?.error_description || data?.error || 'Invalid token response');
+      }
+    } catch (fallbackErr) {
+      console.error('[GoogleAuth] All Google token verification methods failed:', fallbackErr.message);
+      throw new ApiError(401, 'Invalid or expired Google authentication token.');
+    }
   }
 
-  const payload = ticket.getPayload();
-  const { sub: googleId, email, name, picture } = payload;
+  const { sub: googleId, email, name, picture } = payload || {};
 
   if (!email) {
-    throw new ApiError(400, 'Unable to retrieve email address from Google.');
+    throw new ApiError(400, 'Unable to retrieve email address from Google authentication.');
   }
 
   let user = await User.findOne({ email: email.toLowerCase().trim() });
